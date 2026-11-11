@@ -330,7 +330,7 @@ const views = {
         <table class="plain"><tr><th>Lift</th><th class="r">Last, kg</th><th class="r">Wk 1</th></tr>${rows}</table></div>
       <div class="card"><h3>Sync to your private GitHub repo</h3>
         <p class="muted small" style="margin-bottom:10px">Without this, everything stays on this device only. With it, your log is saved as data.json in a private repo and shared between your phone and computer.</p>
-        <div class="stack"><label class="field">Repo<input type="text" id="sync-repo" value="${esc(cfg.repo)}" placeholder="username/fitness-data" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+        <div class="stack"><label class="field">Repo<input type="text" id="sync-repo" value="${esc(cfg.repo || 'alexwilco2012-cyber/fitness-data')}" placeholder="username/fitness-data" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
         <label class="field">Access token<input type="password" id="sync-token" value="${esc(cfg.token)}" placeholder="github_pat_…" autocomplete="off"></label>
         <div class="row"><button class="btn primary grow" data-act="sync-save">Save and sync</button>${cfg.token ? '<button class="btn danger" data-act="sync-off">Turn off</button>' : ''}</div>
         <p class="small" id="sync-stat">${syncText()}</p>

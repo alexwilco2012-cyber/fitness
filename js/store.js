@@ -105,6 +105,20 @@ function queueSync() {
   timer = setTimeout(() => syncNow().catch(() => {}), 4000);
 }
 
+// Works out which of the usual setup mistakes caused a refusal.
+async function diagnose(cfg, headers) {
+  try {
+    const who = await fetch('https://api.github.com/user', { headers, cache: 'no-store' });
+    if (who.status === 401) return 'GitHub does not recognise this token. It may be cut short or expired. Make a new one and paste all of it.';
+    const repo = await fetch(`https://api.github.com/repos/${cfg.repo}`, { headers, cache: 'no-store' });
+    if (repo.status === 404) return `The token works but cannot see ${cfg.repo}. Check the repo name, and that this repo was the one selected when the token was made.`;
+    if (repo.ok) return 'The token can see the repo but cannot save to it. Edit the token on GitHub and set Contents to "Read and write".';
+    return `GitHub returned ${repo.status}`;
+  } catch {
+    return 'GitHub refused the token';
+  }
+}
+
 export async function syncNow(attempt = 0) {
   const cfg = syncCfg();
   if (!cfg.repo || !cfg.token) { setStatus('idle'); return false; }
@@ -125,7 +139,7 @@ export async function syncNow(attempt = 0) {
       sha = body.sha;
       remoteText = fromB64(body.content || '');
     } else if (res.status === 401 || res.status === 403) {
-      throw new Error('GitHub rejected the token');
+      throw new Error(await diagnose(cfg, headers));
     } else if (res.status !== 404) {
       throw new Error(`GitHub returned ${res.status}`);
     }
@@ -143,7 +157,7 @@ export async function syncNow(attempt = 0) {
         body: JSON.stringify({ message: `Update ${new Date().toISOString().slice(0, 16)}`, content: toB64(text), sha }),
       });
       if (putRes.status === 409 && attempt < 2) return await syncNow(attempt + 1);
-      if (putRes.status === 404) throw new Error('Repo not found, or the token cannot write to it');
+      if (putRes.status === 404 || putRes.status === 403 || putRes.status === 401) throw new Error(await diagnose(cfg, headers));
       if (!putRes.ok) throw new Error(`GitHub returned ${putRes.status} when saving`);
     }
     setStatus('ok');
