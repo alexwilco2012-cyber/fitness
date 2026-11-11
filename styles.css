@@ -218,3 +218,11 @@ details.how a { display: inline-block; margin-top: 10px; color: var(--accent-tex
 .guide-list { margin-top: 12px; border-top: 1px solid var(--line); }
 .guide-list details.how { border-bottom: 1px solid var(--line); padding: 6px 0; }
 .guide-list details.how > summary { color: var(--text); }
+
+/* weight tracker */
+.big { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 6px; }
+.stat { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 8px 6px; text-align: center; }
+.stat span { display: block; font-size: 11px; color: var(--muted); }
+.stat b { font-size: 17px; }
+.chart .goal { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; }

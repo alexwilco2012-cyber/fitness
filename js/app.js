@@ -122,13 +122,40 @@ function howBlock(ex, summary, extra = '') {
     ${extra}
     <a href="${demo}" target="_blank" rel="noopener">Watch a demo on YouTube</a></details>`;
 }
-function lineChart(points, unit) {
+const weights = () => store.list('body').filter(b => b.weight).sort((a, b) => a.date.localeCompare(b.date));
+const signed = n => `${n > 0 ? '+' : n < 0 ? '−' : ''}${show(Math.abs(n))}`;
+function weightCard() {
+  const w = weights();
+  const first = w[0], last = w[w.length - 1];
+  const goal = store.state.settings.goalWeight;
+  let line = 'Log your weight to start the tracker.';
+  if (last) {
+    const parts = [`Last logged ${last.date === today() ? 'today' : fmt(last.date, { weekday: 'short', day: 'numeric', month: 'short' })}`];
+    if (w.length > 1) parts.push(`${signed(last.weight - first.weight)} kg since ${fmt(first.date, { day: 'numeric', month: 'short' })}`);
+    if (goal && last.weight > goal) parts.push(`${show(last.weight - goal)} kg to goal`);
+    line = parts.join(' · ');
+  }
+  return `<div class="card"><div class="row between"><h3 style="margin:0">Weight</h3><a class="small" href="#progress" style="color:var(--accent-text);font-weight:600;text-decoration:none">Graph</a></div>
+    <div class="row" style="margin-top:8px"><div class="grow"><span class="big num">${last ? show(last.weight) : '–'}</span> <span class="muted">kg</span></div>
+      <input id="w-quick" type="text" inputmode="decimal" placeholder="Today, kg" aria-label="Today's weight in kg" style="width:112px"><button class="btn primary" data-act="weight-quick">Log</button></div>
+    <p class="muted small" style="margin-top:6px">${line}</p></div>`;
+}
+function weightStats() {
+  const w = weights();
+  if (!w.length) return '';
+  const first = w[0], last = w[w.length - 1];
+  const goal = store.state.settings.goalWeight;
+  const tile = (label, value) => `<div class="stat"><span>${label}</span><b class="num">${value}</b></div>`;
+  return `<div class="stats">${tile('Start', show(first.weight))}${tile('Now', show(last.weight))}${tile('Change', signed(last.weight - first.weight))}${tile('To goal', goal ? (last.weight > goal ? show(last.weight - goal) : 'Reached') : '–')}</div>`;
+}
+function lineChart(points, unit, goal = null) {
   if (!points.length) return '<p class="muted small">Nothing logged yet.</p>';
   if (points.length === 1) return `<p class="small"><b>${show(points[0].y)} ${unit}</b> <span class="muted">on ${fmt(points[0].x, { day: 'numeric', month: 'short' })}. One more entry draws the trend.</span></p>`;
   const W = 340, H = 150, L = 36, R = 48, T = 12, B = 22;
   const xs = points.map(p => parse(p.x).getTime());
   const ys = points.map(p => p.y);
   let lo = Math.min(...ys), hi = Math.max(...ys);
+  if (goal != null) { lo = Math.min(lo, goal); hi = Math.max(hi, goal); }
   if (hi === lo) { hi += 1; lo -= 1; }
   const padY = (hi - lo) * 0.12; lo -= padY; hi += padY;
   const x0 = xs[0], x1 = xs[xs.length - 1] || x0 + 1;
@@ -142,7 +169,7 @@ function lineChart(points, unit) {
   const dots = points.length <= 30 ? points.map((p, i) => `<circle class="pt" cx="${px(xs[i]).toFixed(1)}" cy="${py(p.y).toFixed(1)}" r="3"/>`).join('') : '';
   const lastP = points[points.length - 1];
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Trend, latest ${show(lastP.y)} ${unit}">
-    ${grid}<path class="ln" d="${path}"/>${dots}
+    ${grid}${goal != null ? `<line class="goal" x1="${L}" x2="${W - R}" y1="${py(goal)}" y2="${py(goal)}"/><text x="${W - R + 8}" y="${py(goal) + 4}">Goal</text>` : ''}<path class="ln" d="${path}"/>${dots}
     <text class="last" x="${W - R + 8}" y="${py(lastP.y) + 4}">${show(lastP.y)}</text>
     <text x="${L}" y="${H - 4}">${fmt(points[0].x, { day: 'numeric', month: 'short' })}</text>
     <text x="${W - R}" y="${H - 4}" text-anchor="end">${fmt(lastP.x, { day: 'numeric', month: 'short' })}</text>
@@ -188,6 +215,7 @@ const views = {
     return `<div class="head"><div><h1>${fmt(t, { weekday: 'long' })}</h1><div class="sub">${fmt(t, { day: 'numeric', month: 'long' })} · ${status}</div></div></div>
       ${sessionCard}
       ${nutritionCard(t, true)}
+      ${weightCard()}
       ${weekDots()}
       ${tips.length ? `<div class="card"><h3>Keep in mind</h3><div class="stack small">${tips.map(x => `<p>${esc(x)}</p>`).join('')}</div></div>` : ''}`;
   },
@@ -269,7 +297,7 @@ const views = {
         <div class="grid2"><label class="field">Weight, kg<input id="b-weight" type="text" inputmode="decimal" placeholder="${latest?.weight ? show(latest.weight) : ''}"></label>
         <label class="field">Waist at navel, cm<input id="b-waist" type="text" inputmode="decimal" placeholder="${latest?.waist ? show(latest.waist) : ''}"></label></div>
         <div class="row" style="margin-top:10px"><input id="b-date" type="date" value="${today()}" max="${today()}" aria-label="Date"><button class="btn primary" data-act="body-save">Save</button></div></div>
-      <div class="card"><h3>Body weight, kg</h3>${lineChart(weight, 'kg')}</div>
+      <div class="card"><h3>Body weight, kg</h3>${weightStats()}${lineChart(weight, 'kg', weight.length > 1 ? store.state.settings.goalWeight : null)}</div>
       <div class="card"><h3>Waist, cm</h3>${lineChart(waist, 'cm')}</div>
       <div class="card"><h3>Heaviest set per session, kg</h3>
         <select id="lift-sel" aria-label="Lift">${tracked.map(e => `<option value="${e.id}" ${e.id === liftSel ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}</select>
@@ -570,6 +598,15 @@ const actions = {
     if (weight != null) rec.weight = weight;
     if (waist != null) rec.waist = waist;
     store.put('body', rec); render();
+  },
+  'weight-quick'() {
+    const input = $('#w-quick');
+    const weight = toNum(input.value);
+    if (weight == null || weight <= 0) { input.focus(); return; }
+    const date = today();
+    const prev = store.state.body[date];
+    store.put('body', { id: date, date, weight, waist: prev && !prev.del ? prev.waist : null });
+    render();
   },
   'body-del'(el) { if (confirm('Delete this measurement?')) { store.remove('body', el.dataset.id); render(); } },
 
