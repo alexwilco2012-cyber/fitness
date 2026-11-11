@@ -1,4 +1,5 @@
 import { START, WEEKS, ORDER, SESSIONS, PHASES, START_LIFTS, REVIEW_DATES, REVIEW_QUESTIONS, GUIDE, findExercise } from './programme.js';
+import { FORM } from './form.js';
 import * as store from './store.js';
 
 // ---------- helpers ----------
@@ -110,6 +111,17 @@ function weekDots() {
   }).join('');
   return `<div class="card"><h3>This week</h3><div class="dots">${cells}</div></div>`;
 }
+// Setup, movement steps, faults to watch for and a demo link for one exercise.
+function howBlock(ex, summary, extra = '') {
+  const f = FORM[ex.id] || { how: [], watch: [] };
+  const demo = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${ex.name.split(',')[0]} ${ex.kit === 'Smith' ? 'smith machine ' : ''}proper form`)}`;
+  return `<details class="how"><summary>${summary}</summary>
+    <h4>Setup</h4><p>${esc(ex.setup)}</p>
+    ${f.how.length ? `<h4>The movement</h4><ol>${f.how.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
+    ${f.watch.length ? `<h4>Watch for</h4><ul>${f.watch.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    ${extra}
+    <a href="${demo}" target="_blank" rel="noopener">Watch a demo on YouTube</a></details>`;
+}
 function lineChart(points, unit) {
   if (!points.length) return '<p class="muted small">Nothing logged yet.</p>';
   if (points.length === 1) return `<p class="small"><b>${show(points[0].y)} ${unit}</b> <span class="muted">on ${fmt(points[0].x, { day: 'numeric', month: 'short' })}. One more entry draws the trend.</span></p>`;
@@ -191,7 +203,8 @@ const views = {
         <div class="row between"><h2>${S.name}</h2>${k === next ? '<span class="pill">Next in order</span>' : `<span class="pill plain">${S.day}</span>`}</div>
         <p class="small" style="margin-top:2px">${esc(S.focus)} <span class="muted">· ${esc(S.when)}</span></p>
         <p class="muted small" style="margin:6px 0 12px">${lifts}</p>
-        <button class="btn ${k === next ? 'primary' : ''} block" data-act="start" data-type="${k}">Start ${S.name}</button></div>`;
+        <button class="btn ${k === next ? 'primary' : ''} block" data-act="start" data-type="${k}">Start ${S.name}</button>
+        <details class="how" style="margin-top:10px"><summary>Exercise guide</summary><div class="guide-list">${S.exercises.map(e => howBlock(e, `${e.tag} · ${esc(e.name)} <span style="font-weight:400">· ${targetSets(e, 1)} × ${range(e)}</span>`)).join('')}</div></details></div>`;
     }).join('');
     const hist = finished().reverse().slice(0, 30).map(s => {
       const S = SESSIONS[s.type];
@@ -214,7 +227,7 @@ const views = {
     const favNames = new Set(favs.map(f => f.name));
     const recent = [];
     for (const f of store.list('food').sort((a, b) => b.t - a.t)) {
-      if (favNames.has(f.name) || recent.some(r => r.name === f.name)) continue;
+      if (f.id.startsWith('nc-') || favNames.has(f.name) || recent.some(r => r.name === f.name)) continue;
       recent.push(f);
       if (recent.length >= 8) break;
     }
@@ -224,7 +237,8 @@ const views = {
     return `<div class="head"><div><h1>Food</h1><div class="sub">${label}</div></div>
         <div class="datenav"><button data-act="food-day" data-d="-1" aria-label="Previous day">‹</button><button data-act="food-day" data-d="1" aria-label="Next day" ${foodDate >= today() ? 'disabled' : ''}>›</button></div></div>
       ${nutritionCard(foodDate, false)}
-      <button class="btn primary block" data-act="food-open" style="margin-bottom:12px">Add food</button>
+      <button class="btn primary block" data-act="food-open" style="margin-bottom:8px">Add food</button>
+      <button class="btn block" data-act="nc-open" style="margin-bottom:12px">Enter the day’s totals from Nutracheck</button>
       ${chips ? `<div class="card"><h3>Tap to add again</h3><div class="chips">${chips}</div></div>` : ''}
       <div class="card"><h3>Logged</h3>${entries.map(f => `<div class="item"><div class="grow"><div class="name">${esc(f.name)}</div></div>
         <div class="val">${f.kcal} kcal<br><span class="muted">${show(f.protein)} g protein</span></div>
@@ -311,7 +325,8 @@ function trainActive(s) {
     return `<div class="card ex"><div class="title"><span class="tag">${ex.tag}</span><h2>${esc(ex.name)}${ex.optional ? ' <span class="pill plain">Optional</span>' : ''}</h2></div>
       <div class="target">${sets.length} × ${range(ex)} · ${restText(ex)} · ${esc(ex.kit)}</div>
       ${warm ? `<div class="hint">${warm}</div>` : ''}${p.hint ? `<div class="hint">${esc(p.hint)}</div>` : ''}
-      <details><summary>Setup${lastLine ? ' and last time' : ''}</summary><p style="margin-top:4px">${esc(ex.setup)}</p>${lastLine ? `<p style="margin-top:4px">${lastLine}</p>` : ''}</details>
+      ${lastLine ? `<div class="target">${lastLine}</div>` : ''}
+      ${howBlock(ex, 'How to do it')}
       <div class="unit"><span></span><span>kg</span><span></span><span>reps</span><span></span></div>
       <div class="sets" style="margin-top:0">${sets.map((x, i) => `<div class="set${x.done ? ' done' : ''}"><span class="n">${i + 1}</span>
         <input type="text" inputmode="decimal" value="${show(x.w)}" data-setin="${ex.id}:${i}:w" aria-label="${esc(ex.name)} set ${i + 1} weight">
@@ -343,6 +358,15 @@ function renderSheet() {
   if (!sheet) { el.hidden = true; el.innerHTML = ''; return; }
   el.hidden = false;
   let body;
+  if (sheet.nc) {
+    el.innerHTML = `<div class="panel stack" role="dialog" aria-label="Nutracheck totals">
+      <div class="row between"><h2>Nutracheck totals</h2><button class="icon-btn" data-act="sheet-close" aria-label="Close">×</button></div>
+      <p class="muted small">Keep logging food in Nutracheck, then copy the day’s two numbers from its diary here. Entering them again later replaces the earlier figures, so the day is never counted twice.</p>
+      <div class="grid2"><label class="field">Calories, kcal<input type="text" inputmode="numeric" data-sh="kcal" value="${esc(sheet.kcal)}"></label>
+      <label class="field">Protein, g<input type="text" inputmode="decimal" data-sh="protein" value="${esc(sheet.protein)}"></label></div>
+      <button class="btn primary block" data-act="nc-save">Save totals</button></div>`;
+    return;
+  }
   if (sheet.product) {
     const p = sheet.product;
     body = `<h2>${esc(p.name)}</h2><p class="muted small">Per 100 g: ${Math.round(p.kcal)} kcal · ${show(p.protein)} g protein</p>
@@ -494,6 +518,18 @@ const actions = {
     if (route() !== 'food') foodDate = today();
     sheet = { tab: 'quick', name: '', kcal: '', protein: '', fav: false, q: '', results: null, loading: false, err: '', product: null, grams: '' };
     renderSheet();
+  },
+  'nc-open'() {
+    const prev = store.state.food[`nc-${foodDate}`];
+    const live = prev && !prev.del ? prev : null;
+    sheet = { nc: true, kcal: live ? String(live.kcal) : '', protein: live ? String(live.protein) : '' };
+    renderSheet();
+  },
+  'nc-save'() {
+    const kcal = toNum(sheet.kcal), protein = toNum(sheet.protein) || 0;
+    if (kcal == null) { alert('Enter the calorie total.'); return; }
+    store.put('food', { id: `nc-${foodDate}`, date: foodDate, name: 'Nutracheck day total', kcal: Math.round(kcal), protein: Math.round(protein * 10) / 10 });
+    sheet = null; renderSheet(); render();
   },
   'sheet-close'() { sheet = null; renderSheet(); },
   'sheet-tab'(el) { sheet.tab = el.dataset.tab; renderSheet(); },

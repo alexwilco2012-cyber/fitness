@@ -1,12 +1,14 @@
 :root {
-  --bg: #f4f5f1;
+  --bg: #f2f4fb;
   --card: #ffffff;
-  --line: #e0e3da;
-  --text: #171a17;
-  --muted: #646b62;
-  --accent: #2f6b1f;
+  --line: #dde2f1;
+  --text: #0f1730;
+  --muted: #5b6585;
+  --accent: #3a5fdc;
+  --accent-text: #2f52cc;
   --accent-ink: #ffffff;
-  --accent-soft: #e3efdc;
+  --accent-soft: #e3e9ff;
+  --hero: linear-gradient(140deg, #4f78f0 0%, #4169e1 45%, #27408b 100%);
   --warn: #b4540a;
   --bad: #b3261e;
   --radius: 16px;
@@ -15,14 +17,15 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e1110;
-    --card: #181c1a;
-    --line: #2a302c;
-    --text: #eef1ec;
-    --muted: #98a196;
-    --accent: #b9ee4a;
-    --accent-ink: #10140c;
-    --accent-soft: #232d16;
+    --bg: #080d1c;
+    --card: #101831;
+    --line: #212d55;
+    --text: #edf1ff;
+    --muted: #96a2c6;
+    --accent: #4169e1;
+    --accent-text: #93abff;
+    --accent-ink: #ffffff;
+    --accent-soft: #1a2754;
     --warn: #f0a94e;
     --bad: #ff8a80;
   }
@@ -49,13 +52,16 @@ button { touch-action: manipulation; cursor: pointer; -webkit-user-select: none;
 }
 
 .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 6px 2px 16px; }
-.head h1 { font-size: 28px; line-height: 1.1; letter-spacing: -0.02em; }
+.head h1 { font-size: 30px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
 .head .sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
 
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
 .card h2 { font-size: 17px; letter-spacing: -0.01em; }
 .card h3 { font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
-.card.hl { border-color: var(--accent); }
+.card.hl { background: var(--hero); border-color: transparent; color: #fff; box-shadow: 0 10px 28px rgba(39, 64, 139, 0.35); }
+.card.hl h3, .card.hl .muted { color: rgba(255, 255, 255, 0.82); }
+.card.hl .btn.primary { background: #fff; border-color: #fff; color: #27408b; }
+.card.hl .pill { background: rgba(255, 255, 255, 0.2); color: #fff; }
 .muted { color: var(--muted); }
 .small { font-size: 14px; }
 .row { display: flex; align-items: center; gap: 10px; }
@@ -77,7 +83,7 @@ button { touch-action: manipulation; cursor: pointer; -webkit-user-select: none;
 .btn.danger { color: var(--bad); }
 .btn.sm { min-height: 36px; padding: 0 12px; font-size: 14px; border-radius: 10px; }
 
-.pill { display: inline-block; padding: 3px 9px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
+.pill { display: inline-block; padding: 3px 9px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-text); font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
 .pill.plain { background: var(--bg); color: var(--muted); }
 
 input[type=text], input[type=number], input[type=date], input[type=password], input[type=search], select {
@@ -94,23 +100,23 @@ label.field input, label.field select { margin-top: 4px; color: var(--text); fon
 .meter .top { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; }
 .meter .top b { font-size: 20px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .bar { position: relative; height: 10px; border-radius: 99px; background: var(--bg); border: 1px solid var(--line); margin-top: 6px; overflow: hidden; }
-.bar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 99px; }
+.bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #4169e1, #7896f7); border-radius: 99px; }
 .bar.over i { background: var(--warn); }
 .bar .zone { position: absolute; top: 0; bottom: 0; border-left: 2px solid var(--text); opacity: 0.35; }
 
 /* week dots */
 .dots { display: flex; gap: 8px; }
 .dot { flex: 1; text-align: center; padding: 10px 0; border-radius: 12px; border: 1px dashed var(--line); font-weight: 700; color: var(--muted); }
-.dot.done { border-style: solid; border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.dot.done { border-style: solid; border-color: var(--accent-text); background: var(--accent-soft); color: var(--accent); }
 .dot small { display: block; font-weight: 500; font-size: 11px; }
 
 /* training */
 .ex { padding: 14px; }
 .ex .title { display: flex; gap: 10px; align-items: baseline; }
-.ex .tag { flex: none; min-width: 30px; text-align: center; font-weight: 800; font-size: 13px; color: var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 3px 6px; }
+.ex .tag { flex: none; min-width: 30px; text-align: center; font-weight: 800; font-size: 13px; color: var(--accent-text); background: var(--accent-soft); border-radius: 8px; padding: 3px 6px; }
 .ex h2 { font-size: 16px; }
 .ex .target { color: var(--muted); font-size: 14px; margin: 4px 0 0 40px; }
-.ex .hint { font-size: 13px; margin: 6px 0 0 40px; color: var(--accent); }
+.ex .hint { font-size: 13px; margin: 6px 0 0 40px; color: var(--accent-text); }
 .ex details { margin: 6px 0 0 40px; font-size: 14px; color: var(--muted); }
 .ex summary { cursor: pointer; font-weight: 600; }
 .sets { margin-top: 10px; }
@@ -156,7 +162,7 @@ label.field input, label.field select { margin-top: 4px; color: var(--text); fon
   color: var(--muted); text-decoration: none; font-size: 11px; font-weight: 600;
 }
 #tabs svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-#tabs a.on { color: var(--accent); }
+#tabs a.on { color: var(--accent-text); }
 
 /* lists */
 .item { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
@@ -190,8 +196,8 @@ label.field input, label.field select { margin-top: 4px; color: var(--text); fon
 /* charts */
 .chart { width: 100%; height: auto; display: block; margin-top: 8px; }
 .chart .grid { stroke: var(--line); stroke-width: 1; }
-.chart .ln { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
-.chart .pt { fill: var(--card); stroke: var(--accent); stroke-width: 2; }
+.chart .ln { fill: none; stroke: var(--accent-text); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.chart .pt { fill: var(--card); stroke: var(--accent-text); stroke-width: 2; }
 .chart text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .chart text.last { fill: var(--text); font-weight: 700; font-size: 12px; }
 
@@ -214,6 +220,22 @@ details.guide:first-of-type { border-top: 0; }
 details.guide summary { font-weight: 600; cursor: pointer; }
 details.guide ul { margin: 8px 0 0; padding-left: 20px; color: var(--muted); font-size: 15px; }
 details.guide li + li { margin-top: 6px; }
-.status-ok { color: var(--accent); }
+.status-ok { color: var(--accent-text); }
 .status-bad { color: var(--bad); }
 @media (hover: hover) { .btn:hover, .chip:hover { border-color: var(--muted); } }
+
+/* movement guidance */
+details.how { font-size: 14px; color: var(--muted); }
+details.how > summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+details.how h4 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); }
+details.how ol, details.how ul { margin: 0; padding-left: 20px; }
+details.how li + li { margin-top: 5px; }
+details.how p { margin-top: 4px; }
+details.how a { display: inline-block; margin-top: 10px; color: var(--accent-text); font-weight: 600; }
+.ex details.how { margin: 6px 0 0 40px; }
+.guide-list { margin-top: 12px; border-top: 1px solid var(--line); }
+.guide-list details.how { border-bottom: 1px solid var(--line); padding: 6px 0; }
+.guide-list details.how > summary { color: var(--text); }
+.card.hl .guide-list, .card.hl .guide-list details.how { border-color: rgba(255, 255, 255, 0.22); }
+.card.hl details.how, .card.hl details.how h4, .card.hl details.how a, .card.hl .guide-list details.how > summary { color: #fff; }
+.card.hl details.how ol, .card.hl details.how ul, .card.hl details.how p { color: rgba(255, 255, 255, 0.88); }

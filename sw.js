@@ -1,7 +1,7 @@
 // Network first, so updates arrive as soon as there is a connection.
 // Falls back to the cached copy, so the app opens in the gym with no signal.
-const CACHE = 'fitness-v1';
-const SHELL = ['./', 'index.html', 'styles.css', 'js/app.js', 'js/store.js', 'js/programme.js', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-512.png'];
+const CACHE = 'fitness-v2';
+const SHELL = ['./', 'index.html', 'styles.css', 'js/app.js', 'js/store.js', 'js/programme.js', 'js/form.js', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
