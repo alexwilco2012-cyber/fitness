@@ -1,16 +1,12 @@
 import { START, WEEKS, ORDER, SESSIONS, PHASES, START_LIFTS, REVIEW_DATES, REVIEW_QUESTIONS, GUIDE, findExercise } from './programme.js';
 import { FORM } from './form.js';
 import * as store from './store.js';
+import * as life from './life.js';
+import { pad, parse, today, addDays, daysBetween } from './util.js';
 
 // ---------- helpers ----------
 
 const $ = sel => document.querySelector(sel);
-const pad = n => String(n).padStart(2, '0');
-const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
-const today = () => iso(new Date());
-const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
-const daysBetween = (a, b) => Math.round((parse(b) - parse(a)) / 86400000);
 const fmt = (s, opts) => parse(s).toLocaleDateString('en-GB', opts);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const toNum = v => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
@@ -65,6 +61,9 @@ function foodTotals(date) {
 // ---------- UI state ----------
 
 let foodDate = today();
+let planDate = today();
+let weekSel = life.mondayOf(today());
+let lastToday = today();
 let liftSel = 'squat';
 let sheet = null;
 let rest = null;
@@ -72,11 +71,19 @@ let audio = null;
 
 const route = () => {
   const r = location.hash.slice(1);
-  return ['today', 'train', 'food', 'progress', 'settings'].includes(r) ? r : 'today';
+  return ['today', 'week', 'train', 'food', 'progress', 'settings'].includes(r) ? r : 'today';
 };
 
 function render() {
   const r = route();
+  // Follow the calendar if the app was left open overnight.
+  const t = today();
+  if (t !== lastToday) {
+    if (planDate === lastToday) planDate = t;
+    if (weekSel === life.mondayOf(lastToday)) weekSel = life.mondayOf(t);
+    lastToday = t;
+  }
+  life.refresh();
   $('#view').innerHTML = views[r]();
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === r));
 }
@@ -110,6 +117,30 @@ function weekDots() {
     return `<div class="dot${s ? ' done' : ''}">${s ? s.type : '·'}<small>${s ? fmt(s.date, { weekday: 'short' }) : 'to do'}</small></div>`;
   }).join('');
   return `<div class="card"><h3>This week</h3><div class="dots">${cells}</div></div>`;
+}
+const money = n => `£${Math.round(n * 100) % 100 === 0 ? Math.round(n) : n.toFixed(2)}`;
+const dayMonth = s => fmt(s, { day: 'numeric', month: 'short' });
+function scoreCard(date) {
+  const m = life.mondayOf(date), wp = life.weekPts(m), wt = life.weekTarget(m);
+  const pct = wt ? Math.min(100, (wp / wt) * 100) : 0;
+  const tile = (label, value) => `<div class="stat"><span>${label}</span><b class="num">${value}</b></div>`;
+  const label = m === life.mondayOf(today()) ? 'This week' : `Week of ${dayMonth(m)}`;
+  return `<div class="card"><div class="row between" style="align-items:baseline"><div><span class="big num">${life.ptsFor(date)}</span> <span class="muted">of ${life.maxFor(date)} points</span></div><a class="link small" href="#week">Week</a></div>
+    <div class="meter" style="margin-top:8px"><div class="top"><span>${label}</span><span><b>${wp}</b> <span class="muted">/ ${wt} points</span></span></div>
+    <div class="bar${wp >= wt ? ' hit' : ''}"><i style="width:${pct}%"></i></div></div>
+    <div class="stats three" style="margin:12px 0 0">${tile('Gym streak', life.gymStreak())}${tile('Walk streak', life.walkStreak())}${tile('Level', Math.floor(life.lifetime() / life.LEVEL_PTS) + 1)}</div></div>`;
+}
+function planCard(date) {
+  const future = date > today();
+  const rows = life.tasksFor(date).map(k => {
+    const done = life.isDone(date, k);
+    return `<div class="tl${done ? ' done' : ''}"><span class="tm num">${esc(k.t)}</span>
+      <div class="grow"><div class="nm">${esc(k.name)}</div><div class="meta">${esc(k.meta)}</div></div>
+      <span class="pill${done ? '' : ' plain'}">+${k.pts}</span>
+      <button class="tick" data-act="day-tick" data-id="${k.id}" aria-label="${esc(k.name)} done" aria-pressed="${done}" ${future || k.locked ? 'disabled' : ''}>${CHECK}</button></div>`;
+  }).join('');
+  return `<div class="card"><h3>${date === today() ? 'Today’s plan' : 'Plan'}</h3>${rows}
+    ${future ? '<p class="muted small" style="margin-top:8px">This day has not happened yet, so it cannot be ticked.</p>' : ''}</div>`;
 }
 // Setup, movement steps, faults to watch for and a demo link for one exercise.
 function howBlock(ex, summary, extra = '') {
@@ -212,12 +243,75 @@ const views = {
     const review = REVIEW_DATES.find(d => Math.abs(daysBetween(t, d)) <= 3);
     if (review) tips.push(`Review is due ${fmt(review, { weekday: 'long', day: 'numeric', month: 'long' })}. The checklist is on the Progress tab.`);
 
-    return `<div class="head"><div><h1>${fmt(t, { weekday: 'long' })}</h1><div class="sub">${fmt(t, { day: 'numeric', month: 'long' })} · ${status}</div></div></div>
-      ${sessionCard}
+    const d = planDate, isToday = d === t;
+    return `<div class="head"><div><h1>${fmt(d, { weekday: 'long' })}</h1><div class="sub">${fmt(d, { day: 'numeric', month: 'long' })}${isToday ? ` · ${status}` : ''}</div></div>
+        <div class="datenav">${isToday ? '' : '<button class="wide" data-act="plan-today">Today</button>'}<button data-act="plan-day" data-d="-1" aria-label="Previous day">‹</button><button data-act="plan-day" data-d="1" aria-label="Next day">›</button></div></div>
+      ${scoreCard(d)}
+      ${planCard(d)}
+      ${isToday ? `${sessionCard}
       ${nutritionCard(t, true)}
       ${weightCard()}
-      ${weekDots()}
-      ${tips.length ? `<div class="card"><h3>Keep in mind</h3><div class="stack small">${tips.map(x => `<p>${esc(x)}</p>`).join('')}</div></div>` : ''}`;
+      ${tips.length ? `<div class="card"><h3>Keep in mind</h3><div class="stack small">${tips.map(x => `<p>${esc(x)}</p>`).join('')}</div></div>` : ''}` : ''}`;
+  },
+
+  week() {
+    const m = weekSel, t = today(), isCurrent = m === life.mondayOf(t);
+    const dates = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(m, i));
+    const wp = life.weekPts(m), wt = life.weekTarget(m);
+    const top = Math.max(1, ...dates.map(life.maxFor));
+    const bars = dates.map(d => {
+      const p = life.ptsFor(d), mx = life.maxFor(d);
+      return `<button class="col${p >= mx && mx ? ' full' : ''}${d === t ? ' now' : ''}" data-act="week-day" data-date="${d}" aria-label="${fmt(d, { weekday: 'long' })}, ${p} of ${mx} points">
+        <small class="num">${p || ''}</small><span class="track"><i style="height:${(p / top) * 100}%"></i></span><small>${fmt(d, { weekday: 'short' })}</small></button>`;
+    }).join('');
+    const reward = (store.state.settings.reward || '').trim();
+    const rewardLine = wp >= wt
+      ? `<p class="reward won">Target hit with ${wp} points.${reward ? ` You have earned: ${esc(reward)}.` : ' Set a reward under More.'}</p>`
+      : `<p class="reward">${reward ? `Reward at ${wt} points: ${esc(reward)}.` : 'No reward set. Choose one under More, so the target is worth hitting.'}</p>`;
+
+    const w = life.weekRec(m);
+    const goals = w.goals.map((g, i) => `<div class="tl${g.d ? ' done' : ''}"><div class="grow"><div class="nm">${esc(g.t)}</div></div>
+      <span class="pill${g.d ? '' : ' plain'}">+${life.GOAL_PTS}</span>
+      <button class="tick" data-act="goal-tick" data-i="${i}" aria-label="${esc(g.t)} done" aria-pressed="${!!g.d}">${CHECK}</button>
+      <button class="icon-btn" data-act="goal-del" data-i="${i}" aria-label="Remove goal">×</button></div>`).join('');
+
+    const budget = life.budget(), left = budget - (w.spend || 0);
+    const moneyTop = w.spend == null
+      ? `<span class="big num">${money(budget)}</span> <span class="muted">to spend this week. Nothing entered yet.</span>`
+      : `<span class="big num">${money(Math.abs(left))}</span> <span class="muted">${left >= 0 ? 'left' : 'over'} · ${money(w.spend)} spent of ${money(budget)}</span>`;
+
+    const admin = store.list('admin').sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (a.due || '0').localeCompare(b.due || '0') || a.text.localeCompare(b.text));
+    const deadlines = admin.map(a => {
+      let when = 'No date. Do it when you can.', late = false;
+      if (/^\d{4}-\d\d-\d\d$/.test(a.due)) {
+        const n = daysBetween(t, a.due);
+        late = n < 0 && !a.done;
+        when = `${fmt(a.due, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}, ${n === 0 ? 'today' : n === 1 ? 'tomorrow' : n > 0 ? `in ${n} days` : `${-n} day${n === -1 ? '' : 's'} ago`}`;
+      }
+      return `<div class="tl${a.done ? ' done' : ''}"><div class="grow"><div class="nm">${esc(a.text)}</div><div class="meta${late ? ' late' : ''}">${when}</div></div>
+        <button class="tick" data-act="admin-tick" data-id="${a.id}" aria-label="${esc(a.text)} done" aria-pressed="${!!a.done}">${CHECK}</button>
+        <button class="icon-btn" data-act="admin-del" data-id="${a.id}" aria-label="Remove deadline">×</button></div>`;
+    }).join('');
+
+    return `<div class="head"><div><h1>Week</h1><div class="sub">${dayMonth(m)} to ${dayMonth(dates[6])}</div></div>
+        <div class="datenav">${isCurrent ? '' : '<button class="wide" data-act="week-now">This week</button>'}<button data-act="week-nav" data-d="-7" aria-label="Previous week">‹</button><button data-act="week-nav" data-d="7" aria-label="Next week">›</button></div></div>
+      <div class="card"><h3>Points</h3>
+        <div><span class="big num">${wp}</span> <span class="muted">of ${wt} points${wp >= wt ? '' : `, ${wt - wp} to go`}</span></div>
+        <div class="bar${wp >= wt ? ' hit' : ''}" style="margin-bottom:14px"><i style="width:${wt ? Math.min(100, (wp / wt) * 100) : 0}%"></i></div>
+        <div class="wkbars">${bars}</div>${rewardLine}</div>
+      <div class="card"><h3>Goals for the week</h3>
+        ${goals || '<p class="muted small">Up to three. Each one is worth 20 points.</p>'}
+        ${w.goals.length < life.MAX_GOALS ? `<form class="row" data-form="goal" style="margin-top:10px"><input type="text" id="goal-text" maxlength="80" placeholder="Add a goal" aria-label="New goal" autocomplete="off"><button class="btn primary">Add</button></form>` : ''}</div>
+      <div class="card"><h3>Everyday spending</h3>
+        <div>${moneyTop}</div>
+        <div class="bar${left < 0 ? ' over' : ''}"><i style="width:${budget ? Math.min(100, ((w.spend || 0) / budget) * 100) : 0}%"></i></div>
+        <form class="row" data-form="spend" style="margin-top:12px"><input type="text" id="spend" inputmode="decimal" value="${w.spend == null ? '' : show(w.spend)}" placeholder="Spent so far, £" aria-label="Spent so far this week, in pounds"><button class="btn primary">Save</button></form>
+        <p class="muted small" style="margin-top:8px">Eating out, fuel, clothes, gifts, days out. Not bills, groceries or savings. Check Monzo once a week and type the total.</p></div>
+      <div class="card"><h3>Deadlines</h3>
+        ${deadlines || '<p class="muted small">Nothing with a date yet. Add tax, car, insurance and renewals here.</p>'}
+        <form class="stack" data-form="admin" style="margin-top:10px"><input type="text" id="admin-text" maxlength="100" placeholder="Something with a date" aria-label="New deadline" autocomplete="off">
+        <div class="row"><input type="date" id="admin-due" aria-label="Due date"><button class="btn primary">Add</button></div></form></div>
+      ${isCurrent ? weekDots() : ''}`;
   },
 
   train() {
@@ -319,6 +413,11 @@ const views = {
         <td class="r num">${lw ? `${show(round25(lw * 0.7))}–${show(round25(lw * 0.75))}` : '–'}</td></tr>`;
     }).join('');
     return `<div class="head"><div><h1>More</h1><div class="sub">Targets, starting weights, sync and the programme notes</div></div></div>
+      <div class="card"><h3>Points, money and sleep</h3>
+        <div class="grid2"><label class="field">Weekly spending budget, £<input type="text" inputmode="decimal" data-set="budget" value="${show(s.budget)}" placeholder="104"></label>
+        <label class="field">Weekly points target<input type="text" inputmode="numeric" data-set="target" value="${show(s.target)}" placeholder="80% of a perfect week"></label></div>
+        <label class="field" style="margin-top:10px">Reward for hitting the target<input type="text" data-text="reward" maxlength="80" value="${esc(s.reward)}" placeholder="e.g. Saturday takeaway"></label>
+        <label class="field" style="margin-top:10px">Lights out<input type="time" data-text="lights" value="${esc(s.lights || '21:30')}"></label></div>
       <div class="card"><h3>Daily targets</h3>
         <label class="field">Goal body weight, kg<input type="text" inputmode="decimal" data-set="goalWeight" value="${show(s.goalWeight)}"></label>
         <div class="grid2" style="margin-top:10px"><label class="field">Protein from, g<input type="text" inputmode="numeric" data-set="proteinMin" value="${show(s.proteinMin)}"></label>
@@ -490,7 +589,57 @@ setInterval(() => { if (rest) drawRest(); }, 500);
 
 // ---------- actions ----------
 
+function editWeek(fn) {
+  const w = life.weekRec(weekSel);
+  const rec = { id: weekSel, goals: w.goals.map(g => ({ t: String(g.t || ''), d: !!g.d })), spend: w.spend };
+  fn(rec);
+  store.put('weeks', rec);
+  render();
+}
+
 const actions = {
+  'day-tick'(el) {
+    if (planDate > today()) return;
+    const prev = store.state.days[planDate];
+    const done = { ...(prev && !prev.del && prev.done ? prev.done : {}) };
+    if (done[el.dataset.id]) delete done[el.dataset.id]; else done[el.dataset.id] = true;
+    store.put('days', { id: planDate, date: planDate, done });
+    render();
+  },
+  'plan-day'(el) { planDate = addDays(planDate, +el.dataset.d); render(); },
+  'plan-today'() { planDate = today(); render(); },
+  'week-nav'(el) { weekSel = addDays(weekSel, +el.dataset.d); render(); },
+  'week-now'() { weekSel = life.mondayOf(today()); render(); },
+  'week-day'(el) { planDate = el.dataset.date; location.hash = '#today'; },
+  'goal-add'() {
+    const text = $('#goal-text')?.value.trim();
+    if (!text || life.weekRec(weekSel).goals.length >= life.MAX_GOALS) return;
+    editWeek(w => w.goals.push({ t: text, d: false }));
+  },
+  'goal-tick'(el) {
+    if (weekSel > life.mondayOf(today())) return; // a week that has not started cannot score
+    editWeek(w => { const g = w.goals[+el.dataset.i]; if (g) g.d = !g.d; });
+  },
+  'goal-del'(el) { editWeek(w => w.goals.splice(+el.dataset.i, 1)); },
+  'spend-add'() {
+    // Accept "£45" and "1,050": drop the pound sign, and commas that group thousands.
+    const raw = $('#spend').value.replace(/[£\s]/g, '').replace(/,(?=\d{3}(\D|$))/g, ''), v = toNum(raw);
+    if (raw && (v == null || v < 0)) { $('#spend').focus(); return; }
+    $('#spend').blur();
+    editWeek(w => { w.spend = raw ? Math.round(v * 100) / 100 : null; });
+  },
+  'admin-add'() {
+    const text = $('#admin-text').value.trim();
+    if (!text) { $('#admin-text').focus(); return; }
+    store.put('admin', { id: store.uid(), text, due: $('#admin-due').value || '', done: false });
+    render();
+  },
+  'admin-tick'(el) {
+    const a = store.state.admin[el.dataset.id];
+    if (a && !a.del) { store.put('admin', { ...a, done: !a.done }); render(); }
+  },
+  'admin-del'(el) { if (confirm('Remove this deadline?')) { store.remove('admin', el.dataset.id); render(); } },
+
   'go-train'() { location.hash = '#train'; },
   start(el) {
     if (active()) { location.hash = '#train'; return; }
@@ -529,6 +678,7 @@ const actions = {
     for (const id of Object.keys(s.sets)) s.sets[id] = s.sets[id].filter(x => x.done);
     s.end = Date.now();
     store.put('sessions', s);
+    planDate = today();
     rest = null; drawRest();
     location.hash = '#today';
   },
@@ -636,13 +786,17 @@ const actions = {
 
 document.addEventListener('click', e => {
   if (e.target.id === 'sheet') { sheet = null; renderSheet(); return; }
+  // The Today tab always means today, even after browsing to another day.
+  if (e.target.closest('#tabs a[data-tab="today"]') && planDate !== today()) { planDate = today(); if (route() === 'today') render(); }
   const el = e.target.closest('[data-act]');
   if (el && actions[el.dataset.act]) actions[el.dataset.act](el);
 });
 
 document.addEventListener('submit', e => {
   e.preventDefault();
-  if (e.target.dataset.form === 'search') searchFood();
+  const form = e.target.dataset.form;
+  if (form === 'search') searchFood();
+  else if (actions[`${form}-add`]) actions[`${form}-add`]();
 });
 
 document.addEventListener('input', e => {
@@ -665,6 +819,9 @@ document.addEventListener('change', e => {
   if (el.dataset.set) {
     const v = toNum(el.value);
     store.setSettings({ [el.dataset.set]: v == null ? null : v });
+    render();
+  } else if (el.dataset.text) {
+    store.setSettings({ [el.dataset.text]: el.value.trim() });
     render();
   } else if (el.dataset.lw) {
     const lastWeights = { ...store.state.settings.lastWeights };
@@ -699,6 +856,7 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+life.seed();
 render();
 store.syncNow().catch(() => {});
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

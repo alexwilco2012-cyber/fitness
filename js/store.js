@@ -4,12 +4,12 @@
 
 const KEY = 'fit.v1';
 const CFG = 'fit.sync';
-const COLLECTIONS = ['sessions', 'food', 'favs', 'body'];
+const COLLECTIONS = ['sessions', 'food', 'favs', 'body', 'days', 'weeks', 'admin'];
 
 const blank = () => ({
   v: 1,
-  settings: { t: 0, kcal: null, proteinMin: 175, proteinMax: 220, goalWeight: 110, lastWeights: {}, reviews: {} },
-  sessions: {}, food: {}, favs: {}, body: {},
+  settings: { t: 0, kcal: null, proteinMin: 175, proteinMax: 220, goalWeight: 110, lastWeights: {}, reviews: {}, budget: 104, target: null, reward: '', lights: '21:30' },
+  sessions: {}, food: {}, favs: {}, body: {}, days: {}, weeks: {}, admin: {},
 });
 
 function read(key) {
@@ -48,6 +48,15 @@ export function remove(coll, id) {
 export function setSettings(patch) {
   state.settings = { ...state.settings, ...patch, t: Date.now() };
   save();
+}
+// Adds starter records that are not there yet. They carry an old timestamp, so they never
+// override a real change, and a deleted one (a tombstone) is not added back.
+export function seed(coll, recs) {
+  let added = false;
+  for (const rec of recs) {
+    if (!state[coll][rec.id]) { state[coll][rec.id] = { ...rec, t: 1 }; added = true; }
+  }
+  if (added) write(KEY, state);
 }
 export const list = coll => Object.values(state[coll]).filter(r => !r.del);
 

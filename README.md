@@ -1,10 +1,11 @@
-# Fitness
+# Life HQ
 
-A phone-first tracker for the 12-week home gym programme (starts Monday 16 November 2026) with a calorie and protein counter. It is a plain website with no build step, and it installs to the iPhone home screen from Safari.
+One phone-first app for the day: the daily plan with points and streaks, weekly goals, a weekly spending number and deadlines, plus the tracker for the 12-week home gym programme (starts Monday 16 November 2026) with a calorie and protein counter. It started as the Fitness app, which is why the folder and web address still say fitness. It is a plain website with no build step, and it installs to the iPhone home screen from Safari.
 
 ## What it does
 
-- **Today**: the session that is due, protein and calories so far, and the week's three sessions.
+- **Today**: the day's plan to tick off for points, the score and streaks, the session that is due, and protein and calories so far. The gym and protein items tick themselves from the training and food logs.
+- **Week**: points per day against the weekly target and reward, up to three goals, everyday spending against the weekly budget, and deadlines.
 - **Train**: sessions A, B and C with sets, reps, rests and setup notes. It fills in the weights from last time, tells you when to add weight, and runs the rest timer.
 - **Food**: quick add, favourites, tap to add again, and a product search (Open Food Facts).
 - **Progress**: body weight, waist, heaviest set per lift, sessions by week, and the two review checklists.
@@ -27,5 +28,7 @@ Then open http://localhost:4173.
 - `index.html`, `styles.css`: the page and its look
 - `js/programme.js`: the programme itself (edit this to change exercises, sets or dates)
 - `js/app.js`: the screens
+- `js/life.js`: the daily plan, point values, streaks and weekly scoring (edit this to change the routine)
+- `js/util.js`: date helpers
 - `js/store.js`: saving, backup and GitHub sync
 - `sw.js`, `manifest.webmanifest`, `icons/`: home-screen install and offline use

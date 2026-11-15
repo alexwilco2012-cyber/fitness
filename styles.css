@@ -226,3 +226,38 @@ details.how a { display: inline-block; margin-top: 10px; color: var(--accent-tex
 .stat span { display: block; font-size: 11px; color: var(--muted); }
 .stat b { font-size: 17px; }
 .chart .goal { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; }
+
+/* daily plan, week, goals, deadlines */
+:root { --good: #4fd08a; --good-soft: #12301f; }
+input[type=time] {
+  width: 100%; min-height: 46px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--bg); font-size: 16px; -webkit-appearance: none; appearance: none;
+}
+.link { color: var(--accent-text); font-weight: 600; text-decoration: none; }
+.datenav button.wide { width: auto; padding: 0 12px; font-size: 14px; font-weight: 600; }
+.stats.three { grid-template-columns: repeat(3, 1fr); }
+.bar.hit i { background: var(--good); }
+.tl { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.card h3 + .tl { border-top: 0; padding-top: 0; }
+.tl .tm { flex: none; width: 46px; font-weight: 700; font-size: 15px; }
+.tl .nm { font-weight: 600; overflow-wrap: anywhere; }
+.tl .meta { color: var(--muted); font-size: 13px; }
+.tl .meta.late { color: var(--bad); font-weight: 600; }
+.tl .pill { flex: none; }
+.tl .tick { flex: none; width: 46px; height: 46px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); display: grid; place-items: center; padding: 0; }
+.tl .tick svg { width: 22px; height: 22px; stroke: var(--muted); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.tl .tick:disabled { cursor: default; }
+.tl:not(.done) .tick:disabled { opacity: 0.45; }
+.tl.done .tick { background: var(--good); border-color: var(--good); }
+.tl.done .tick svg { stroke: var(--bg); }
+.tl.done .nm { color: var(--muted); text-decoration: line-through; }
+.tl.done .pill { background: var(--good-soft); color: var(--good); }
+.wkbars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.wkbars .col { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; border: 0; background: none; min-width: 0; }
+.wkbars .col small { font-size: 11px; color: var(--muted); min-height: 14px; }
+.wkbars .col.now small:last-child { color: var(--accent-text); font-weight: 700; }
+.wkbars .track { display: flex; align-items: flex-end; width: 100%; height: 72px; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.wkbars .track i { display: block; width: 100%; background: var(--accent); }
+.wkbars .col.full .track i { background: var(--good); }
+.reward { margin-top: 12px; font-size: 14px; color: var(--muted); }
+.reward.won { color: var(--good); font-weight: 600; }
