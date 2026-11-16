@@ -46,13 +46,13 @@ export function tasksFor(date) {
     const session = slotSession(date);
     const late = session && session.date !== date ? parse(session.date).toLocaleDateString('en-GB', { weekday: 'long' }) : '';
     out.push({
-      id: 'gym', pts: 30, auto: !!session, locked: true, t: d === 4 ? '12:30' : '05:30',
+      id: 'gym', pts: 30, auto: !!session, locked: true, t: d === 4 ? '12:30' : '18:15',
       name: session ? `Home gym: ${SESSIONS[session.type].name}` : 'Home gym session',
-      meta: session ? (late ? `Done on ${late}.` : 'Session logged.') : `${d === 4 ? 'At lunch, after the dog walk' : '30 minutes'}. Ticks itself when you finish the session.`,
+      meta: session ? (late ? `Done on ${late}.` : 'Session logged.') : `${d === 4 ? 'At lunch, after the dog walk' : '30 minutes, after the evening walk'}. Ticks itself when you finish the session.`,
     });
   }
   if (d <= 3) {
-    out.push({ id: 'walk_am', t: '06:00', name: 'Walk Roo, then her breakfast', meta: '30 minutes. Leave for work at 07:00.', pts: 10 });
+    out.push({ id: 'walk_am', t: '05:45', name: 'Walk Roo, then her breakfast', meta: '45 minutes. Get ready from 06:30, leave for work at 07:00.', pts: 10 });
     out.push({ id: 'walk_pm', t: '17:30', name: 'Evening walk with Roo', meta: 'Straight after getting home.', pts: 10 });
   } else if (d === 4) {
     out.push({ id: 'walk_am', t: '06:45', name: 'Walk Roo, then her breakfast', meta: '30 minutes. Working from home today.', pts: 10 });
@@ -68,10 +68,9 @@ export function tasksFor(date) {
     meta: min ? `${got} of ${min} g logged. Ticks itself at ${min} g.` : 'Tick it when you have hit your target.',
   });
   if (d <= 3 || d === 6) {
-    const tomorrow = addDays(date, 1);
     out.push({
       id: 'lights', t: s.lights || '21:30', name: 'Lights out', pts: 10,
-      meta: d === 3 ? 'Up for the 06:45 walk tomorrow.' : gymSlot(tomorrow) ? 'Gym at 05:30 tomorrow.' : 'Up for the 06:00 walk tomorrow.',
+      meta: d === 3 ? 'Up for the 06:45 walk tomorrow.' : 'Up at 05:30 for the 05:45 walk tomorrow.',
     });
   }
   return out.sort((a, b) => a.t.localeCompare(b.t));
